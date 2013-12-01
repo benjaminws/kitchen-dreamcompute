@@ -80,7 +80,7 @@ module Kitchen
           :provider           => :openstack,
           :openstack_api_key  => config[:dreamhost_api_key],
           :openstack_username => config[:dreamhost_username],
-          :openstack_auth_utl => "#{config[:dreamhost_auth_url]}/tokens"
+          :openstack_auth_url => "#{config[:dreamhost_auth_url]}/tokens"
         })
       end
 
