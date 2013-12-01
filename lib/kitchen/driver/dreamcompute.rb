@@ -78,9 +78,9 @@ module Kitchen
       def connection
         Fog::Compute.new({
           :provider           => :openstack,
-          :openstack_api_key  => config[:dreamhost_api_key],
-          :openstack_username => config[:dreamhost_username],
-          :openstack_auth_url => "#{config[:dreamhost_auth_url]}/tokens"
+          :openstack_api_key  => config[:dreamcompute_api_key],
+          :openstack_username => config[:dreamcompute_username],
+          :openstack_auth_url => "#{config[:dreamcompute_auth_url]}/tokens"
         })
       end
 
