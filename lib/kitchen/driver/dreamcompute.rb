@@ -19,6 +19,10 @@
 require 'kitchen'
 require 'json'
 require 'fog'
+require 'rubygems'
+require 'excon'
+
+Excon.defaults[:ssl_version] = 'SSLv3'
 
 module Kitchen
 
