@@ -19,10 +19,6 @@
 require 'kitchen'
 require 'json'
 require 'fog'
-require 'rubygems'
-require 'excon'
-
-Excon.defaults[:ssl_version] = 'SSLv3'
 
 module Kitchen
 
@@ -33,9 +29,18 @@ module Kitchen
     # @author Benjamin W. Smith <benjaminwarfield@just-another.net>
     class Dreamcompute < Kitchen::Driver::SSHBase
       default_config :availability_zone,  'iad-1'
-      default_config :flavor_id,          'subsonic'
+      # TODO: Compute flavor_ref and image_ref based on human friendly id's
+      # Imagine I can extrapolate it from the compute api
+      default_config :flavor_id,          100
       default_config :groups,             ['default']
+      default_config :ssl_v3_only,        false
 
+      default_config :name do |driver|
+        compute_unique_name
+      end
+
+      # TODO: Consider more DH contextual env vars
+      # These are the defaults from the openstack rc
       default_config :dreamcompute_auth_url do |driver|
         ENV['OS_AUTH_URL']
       end
@@ -52,7 +57,7 @@ module Kitchen
       required_config :dreamcompute_api_key
       required_config :dreamcompute_username
       required_config :image_id
-
+      required_config :flavor_id
 
       def create(state)
         server = create_server
@@ -69,6 +74,7 @@ module Kitchen
       end
 
       def destroy(state)
+        ssl_v3_only if config[:ssl_v3_only]
         return if state[:server_id].nil?
 
         server = connection.servers.get(state[:server_id])
@@ -80,12 +86,22 @@ module Kitchen
 
       private
       def connection
-        Fog::Compute.new({
+        @connection ||= Fog::Compute.new({
           :provider           => :openstack,
           :openstack_api_key  => config[:dreamcompute_api_key],
           :openstack_username => config[:dreamcompute_username],
           :openstack_auth_url => "#{config[:dreamcompute_auth_url]}/tokens"
         })
+      end
+
+      def compute_unique_name
+        "test-kitchen-#{(0...8).map { (65 + rand(26)).chr }.join}"
+      end
+
+      def ssl_v3_only
+        require 'rubygems'
+        require 'excon'
+        Excon.defaults[:ssl_version] = 'SSLv3'
       end
 
       def create_server
@@ -94,8 +110,9 @@ module Kitchen
         connection.servers.create(
           :availability_zone  => config[:availability_zone],
           :groups             => config[:groups],
-          :flavor_id          => config[:flavor_id],
-          :image_id           => config[:image_id],
+          :name               => config[:name],
+          :flavor_ref         => config[:flavor_id],
+          :image_ref          => config[:image_id],
           :key_name           => config[:ssh_key_id],
         )
       end
