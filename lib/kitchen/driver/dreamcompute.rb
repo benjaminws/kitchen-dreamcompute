@@ -36,7 +36,7 @@ module Kitchen
       default_config :groups,             ['default']
       default_config :ssl_v3_only,        false
 
-      default_config :name do |driver|
+      default_config :server_name do |driver|
         compute_unique_name
       end
 
@@ -78,7 +78,7 @@ module Kitchen
         ssl_v3_only if config[:ssl_v3_only]
         return if state[:server_id].nil?
 
-        server = connection.servers.get(state[:server_id])
+        server = @connection.servers.get(state[:server_id])
         server.destroy unless server.nil?
         info("DreamCompute instance <#{state[:server_id]}> destroyed.")
         state.delete(:server_id)
@@ -106,31 +106,29 @@ module Kitchen
       end
 
       def create_server
+        config[:flavor_id] = find_flavor_id(active_flavors,
+                                    config[:flavor_name]) || config[:flavor_id]
+        config[:image_id] = find_image_id(active_images, config[:image_name])
+
         debug_server_config
 
-        flavor_ref = find_flavor_id(active_flavors,
-                                    config[:flavor_name]) || config[:flavor_id]
-
-        image_ref = find_image_id(active_images, config[:image_name])
-
-        connection.servers.create(
+        @connection.servers.create(
           :availability_zone  => config[:availability_zone],
           :groups             => config[:groups],
-          :name               => config[:name],
-          :flavor_ref         => flavor_ref,
-          :image_ref          => image_ref,
+          :name               => config[:server_name],
+          :flavor_ref         => config[:flavor_id],
+          :image_ref          => config[:image_id],
           :key_name           => config[:ssh_key_id],
         )
       end
 
       def debug_server_config
         debug("dreamcompute:name '#{config[:name]}'")
-        debug("dreamcompute:region '#{config[:region]}'")
         debug("dreamcompute:availability_zone '#{config[:availability_zone]}'")
         debug("dreamcompute:flavor_id '#{config[:flavor_id]}'")
         debug("dreamcompute:image_id '#{config[:image_id]}'")
         debug("dreamcompute:groups '#{config[:groups]}'")
-        debug("dreamcompute:key_name '#{config[:ssh_key_id]}'")
+        debug("dreamcompute:ssh_key_id '#{config[:ssh_key_id]}'")
       end
 
       def active_images
