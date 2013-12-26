@@ -20,6 +20,9 @@ require 'kitchen'
 require 'json'
 require 'fog'
 
+class ImageNotFound < StandardError; end
+class FlavorNotFound < StandardError; end
+
 module Kitchen
 
   module Driver
@@ -29,8 +32,6 @@ module Kitchen
     # @author Benjamin W. Smith <benjaminwarfield@just-another.net>
     class Dreamcompute < Kitchen::Driver::SSHBase
       default_config :availability_zone,  'iad-1'
-      # TODO: Compute flavor_ref and image_ref based on human friendly id's
-      # Imagine I can extrapolate it from the compute api
       default_config :flavor_id,          100
       default_config :groups,             ['default']
       default_config :ssl_v3_only,        false
@@ -56,8 +57,8 @@ module Kitchen
       required_config :dreamcompute_auth_url
       required_config :dreamcompute_api_key
       required_config :dreamcompute_username
-      required_config :image_id
-      required_config :flavor_id
+      required_config :image_name
+      required_config :flavor_name
 
       def create(state)
         server = create_server
@@ -107,17 +108,23 @@ module Kitchen
       def create_server
         debug_server_config
 
+        flavor_ref = find_flavor_id(active_flavors,
+                                    config[:flavor_name]) || config[:flavor_id]
+
+        image_ref = find_image_id(active_images, config[:image_name])
+
         connection.servers.create(
           :availability_zone  => config[:availability_zone],
           :groups             => config[:groups],
           :name               => config[:name],
-          :flavor_ref         => config[:flavor_id],
-          :image_ref          => config[:image_id],
+          :flavor_ref         => flavor_ref,
+          :image_ref          => image_ref,
           :key_name           => config[:ssh_key_id],
         )
       end
 
       def debug_server_config
+        debug("dreamcompute:name '#{config[:name]}'")
         debug("dreamcompute:region '#{config[:region]}'")
         debug("dreamcompute:availability_zone '#{config[:availability_zone]}'")
         debug("dreamcompute:flavor_id '#{config[:flavor_id]}'")
@@ -126,6 +133,21 @@ module Kitchen
         debug("dreamcompute:key_name '#{config[:ssh_key_id]}'")
       end
 
+      def active_images
+        @connection.images.select { |i| i.status == 'ACTIVE' }
+      end
+
+      def active_flavors
+        @connection.flavors.each { |f| (!f.disabled && f.is_public) }
+      end
+
+      def find_image_id(images, image_name)
+        images.select { |i| i.name == image_name }.pop or raise ImageNotFound
+      end
+
+      def find_flavor_id(flavors, flavor_name)
+        flavors.select { |f| f.name == flavor_name }.pop or raise FlavorNotFound
+      end
 
     end
   end
