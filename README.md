@@ -1,12 +1,9 @@
 # <a name="title"></a> Kitchen::Dreamcompute
 
-A Test Kitchen Driver for Dreamcompute.
+[![Code
+Climate](https://codeclimate.com/github/benjaminws/kitchen-dreamcompute.png)](https://codeclimate.com/github/benjaminws/kitchen-dreamcompute)
 
-## <a name="requirements"></a> Requirements
-
-**TODO:** document any software or library prerequisites that are required to
-use this driver. Implement the `#verify_dependencies` method in your Driver
-class to enforce these requirements in code, if possible.
+A Test Kitchen Driver for DreamCompute.
 
 ## <a name="installation"></a> Installation and Setup
 
@@ -14,7 +11,27 @@ Please read the [Driver usage][driver_usage] page for more details.
 
 ## <a name="config"></a> Configuration
 
-**TODO:** Write descriptions of all configuration options
+Minimum config:
+
+    driver:
+      name: dreamcompute
+      dreamcompute_username: <dreamcompute_username> || ENV['OS_AUTH_URL'}
+      dreamcompute_api_key: <dreamcompute_api_key> || ENV['OS_PASSWORD']
+      dreamcompute_auth_url: <dreamcompute_auth_url> || ENV['OS_AUTH_URL']
+      require_chef_omnibus: latest
+      image_name: <server image name>
+      flavor_name: <server flavor name>
+      username: <username for image>
+
+Config options (and defaults):
+
+    server_name: <unique_name> || randomly_generated_name
+    groups: ['default']
+    ssl_v3_only: false
+    availability_zone: 'iad-1'
+    ssh_key_id: ''
+    flavor_id: '' || flavor_name
+    image_id: '' || image_name
 
 ### <a name="config-require-chef-omnibus"></a> require\_chef\_omnibus
 
@@ -56,9 +73,9 @@ Created and maintained by [Benjamin W. Smith][author] (<benjaminwarfield@just-an
 Apache 2.0 (see [LICENSE][license])
 
 
-[author]:           https://github.com/enter-github-user
-[issues]:           https://github.com/enter-github-user/kitchen-dreamcompute/issues
-[license]:          https://github.com/enter-github-user/kitchen-dreamcompute/blob/master/LICENSE
-[repo]:             https://github.com/enter-github-user/kitchen-dreamcompute
+[author]:           https://github.com/benjaminws
+[issues]:           https://github.com/benjaminws/kitchen-dreamcompute/issues
+[license]:          https://github.com/benjaminws/kitchen-dreamcompute/blob/master/LICENSE
+[repo]:             https://github.com/benjaminws/kitchen-dreamcompute
 [driver_usage]:     http://docs.kitchen-ci.org/drivers/usage
 [chef_omnibus_dl]:  http://www.opscode.com/chef/install/
