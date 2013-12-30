@@ -37,7 +37,7 @@ module Kitchen
       default_config :ssl_v3_only,        false
 
       default_config :server_name do |driver|
-        compute_unique_name
+        driver.compute_unique_name
       end
 
       # TODO: Consider more DH contextual env vars
@@ -78,14 +78,13 @@ module Kitchen
         ssl_v3_only if config[:ssl_v3_only]
         return if state[:server_id].nil?
 
-        server = @connection.servers.get(state[:server_id])
+        server = connection.servers.get(state[:server_id])
         server.destroy unless server.nil?
         info("DreamCompute instance <#{state[:server_id]}> destroyed.")
         state.delete(:server_id)
         state.delete(:hostname)
       end
 
-      private
       def connection
         @connection ||= Fog::Compute.new({
           :provider           => :openstack,
@@ -112,7 +111,7 @@ module Kitchen
 
         debug_server_config
 
-        @connection.servers.create(
+        connection.servers.create(
           :availability_zone  => config[:availability_zone],
           :groups             => config[:groups],
           :name               => config[:server_name],
@@ -123,7 +122,7 @@ module Kitchen
       end
 
       def debug_server_config
-        debug("dreamcompute:name '#{config[:name]}'")
+        debug("dreamcompute:name '#{config[:server_name]}'")
         debug("dreamcompute:availability_zone '#{config[:availability_zone]}'")
         debug("dreamcompute:flavor_id '#{config[:flavor_id]}'")
         debug("dreamcompute:image_id '#{config[:image_id]}'")
@@ -132,19 +131,19 @@ module Kitchen
       end
 
       def active_images
-        @connection.images.select { |i| i.status == 'ACTIVE' }
+        connection.images.select { |i| i.status == 'ACTIVE' }
       end
 
       def active_flavors
-        @connection.flavors.each { |f| (!f.disabled && f.is_public) }
+        connection.flavors.each { |f| (!f.disabled && f.is_public) }
       end
 
       def find_image_id(images, image_name)
-        images.select { |i| i.name == image_name }.pop or raise ImageNotFound
+        images.select { |i| i.name == image_name }.pop.id or raise ImageNotFound
       end
 
       def find_flavor_id(flavors, flavor_name)
-        flavors.select { |f| f.name == flavor_name }.pop or raise FlavorNotFound
+        flavors.select { |f| f.name == flavor_name }.pop.id or raise FlavorNotFound
       end
 
     end
