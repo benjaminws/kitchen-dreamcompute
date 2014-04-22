@@ -35,13 +35,12 @@ module Kitchen
       default_config :flavor_id,          100
       default_config :groups,             ['default']
       default_config :ssl_v3_only,        false
+      default_config :username,           'dhc-user'
 
       default_config :server_name do |driver|
         driver.compute_unique_name
       end
 
-      # TODO: Consider more DH contextual env vars
-      # These are the defaults from the openstack rc
       default_config :dreamcompute_auth_url do |driver|
         ENV['OS_AUTH_URL']
       end
@@ -54,21 +53,34 @@ module Kitchen
         ENV['OS_USERNAME']
       end
 
+      default_config :dreamcompute_tenant_name do |driver|
+        ENV['OS_TENANT_NAME']
+      end
+
       required_config :dreamcompute_auth_url
       required_config :dreamcompute_api_key
       required_config :dreamcompute_username
+      required_config :dreamcompute_tenant_name
       required_config :image_name
       required_config :flavor_name
 
       def create(state)
+        ssl_v3_only if config[:ssl_v3_only]
         server = create_server
         state[:server_id] = server.id
 
         info("DreamCompute instance <#{state[:server_id]}> created.")
-
+        info('Waiting for server to be available')
         server.wait_for { print "."; ready? } ; print "(server ready)"
+
+        # WIP
+        # associate_floating_ip(server)
+
         state[:hostname] = server.public_ip_address || server.private_ip_address
-        wait_for_sshd(state[:hostname], config[:username]) ; print "(ssh ready)\n"
+
+        info("Waiting for ssh on #{state[:hostname]} with #{config[:username]}")
+
+        wait_for_sshd(state[:hostname], config[:username], {:ipv6 => true}) ; print "(ssh ready)\n"
         debug("dreamcompute:create '#{state[:hostname]}'")
       rescue Fog::Errors::Error, Excon::Errors::Error => ex
         raise ActionFailed, ex.message
@@ -86,10 +98,10 @@ module Kitchen
       end
 
       def connection
-        @connection ||= Fog::Compute.new({
-          :provider           => :openstack,
+        @connection ||= Fog::Compute::OpenStack.new({
           :openstack_api_key  => config[:dreamcompute_api_key],
           :openstack_username => config[:dreamcompute_username],
+          :openstack_tenant   => config[:dreamcompute_tenant_name],
           :openstack_auth_url => "#{config[:dreamcompute_auth_url]}/tokens"
         })
       end
@@ -104,30 +116,56 @@ module Kitchen
         Excon.defaults[:ssl_version] = 'SSLv3'
       end
 
+      def create_volume(image_id)
+        volume_service = Fog::Volume::OpenStack.new({
+          :openstack_api_key  => config[:dreamcompute_api_key],
+          :openstack_username => config[:dreamcompute_username],
+          :openstack_tenant   => config[:dreamcompute_tenant_name],
+          :openstack_auth_url => "#{config[:dreamcompute_auth_url]}/tokens"
+        })
+
+        volume_service.volumes.create(size: 80,
+                                      display_name: compute_unique_name,
+                                      display_description: 'Test Kitchen Volume',
+                                      imageRef: image_id)
+      end
+
       def create_server
         config[:flavor_id] = find_flavor_id(active_flavors,
                                     config[:flavor_name]) || config[:flavor_id]
         config[:image_id] = find_image_id(active_images, config[:image_name])
 
-        debug_server_config
+        new_volume = create_volume(config[:image_id])
+
+        info('Waiting for new volume to be available')
+        new_volume.wait_for { print '.'; status == 'available' }
+
+        block_device_options = {
+          :volume_name           => new_volume.display_name,
+          :device_name           => 'vda',
+          :volume_id             => new_volume.id,
+          :delete_on_termination => true
+        }
 
         connection.servers.create(
-          :availability_zone  => config[:availability_zone],
-          :groups             => config[:groups],
-          :name               => config[:server_name],
-          :flavor_ref         => config[:flavor_id],
-          :image_ref          => config[:image_id],
-          :key_name           => config[:ssh_key_id],
+          :availability_zone    => config[:availability_zone],
+          :groups               => config[:groups],
+          :name                 => config[:server_name],
+          :flavor_ref           => config[:flavor_id],
+          :image_ref            => config[:image_id],
+          :key_name             => config[:ssh_key_id],
+          :block_device_mapping => block_device_options
         )
       end
 
-      def debug_server_config
-        debug("dreamcompute:name '#{config[:server_name]}'")
-        debug("dreamcompute:availability_zone '#{config[:availability_zone]}'")
-        debug("dreamcompute:flavor_id '#{config[:flavor_id]}'")
-        debug("dreamcompute:image_id '#{config[:image_id]}'")
-        debug("dreamcompute:groups '#{config[:groups]}'")
-        debug("dreamcompute:ssh_key_id '#{config[:ssh_key_id]}'")
+      def available_floating_ips
+        connection.addresses.find_all { |address| address.instance_id.nil? }
+      end
+
+      def associate_floating_ip(server)
+        address = available_floating_ips.first.ip
+        server.associate_address(address)
+        (server.addresses['public'] ||= []) << { 'version' => 4, 'addr' => address }
       end
 
       def active_images
