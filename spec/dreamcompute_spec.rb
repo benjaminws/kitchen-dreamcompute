@@ -57,7 +57,7 @@ describe Kitchen::Driver::Dreamcompute do
       end
 
       it 'will prefer root as the default user' do
-        expect(driver[:username]).to eq('root')
+        expect(driver[:username]).to eq('dhc-user')
       end
 
       it 'will have a nil image_name' do
@@ -80,6 +80,7 @@ describe Kitchen::Driver::Dreamcompute do
           dreamcompute_auth_url: 'http://127.0.0.1:8080',
           dreamcompute_api_key: 'test_api_key',
           dreamcompute_username: 'test_username',
+          dreamcompute_tenant_name: 'test',
           image_name: 'image1',
           flavor_name: 'flavor1',
           username: 'toor'
@@ -127,7 +128,7 @@ describe Kitchen::Driver::Dreamcompute do
                                :to_s => 'instance')
       driver.stub(:compute_unique_name).and_return('test-kitchen-abcd1234')
       driver.stub(:create_server).and_return(server_double)
-      driver.stub(:wait_for_sshd).with('1.2.3.4', 'root').and_return(true)
+      driver.stub(:wait_for_sshd).with('1.2.3.4', 'dhc-user', {}).and_return(true)
 
       return driver
     end
@@ -153,7 +154,7 @@ describe Kitchen::Driver::Dreamcompute do
     end
 
     it 'will wait for sshd to be available' do
-      configured_driver.should_receive(:wait_for_sshd).with('1.2.3.4', 'root').and_return(true)
+      configured_driver.should_receive(:wait_for_sshd).with('1.2.3.4', 'dhc-user', {}).and_return(true)
       configured_driver.create(state)
     end
   end

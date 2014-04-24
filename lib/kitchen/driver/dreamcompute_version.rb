@@ -21,6 +21,6 @@ module Kitchen
   module Driver
 
     # Version string for Dreamcompute Kitchen driver
-    DREAMCOMPUTE_VERSION = "0.1.0.dev"
+    DREAMCOMPUTE_VERSION = "0.1.1.dev"
   end
 end

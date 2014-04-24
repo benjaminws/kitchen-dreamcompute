@@ -80,7 +80,10 @@ module Kitchen
 
         info("Waiting for ssh on #{state[:hostname]} with #{config[:username]}")
 
-        wait_for_sshd(state[:hostname], config[:username], {:ipv6 => true}) ; print "(ssh ready)\n"
+        ssh_options = Hash.new
+        ssh_options[:ipv6] = true if config[:ipv6]
+
+        wait_for_sshd(state[:hostname], config[:username], ssh_options) ; print "(ssh ready)\n"
         debug("dreamcompute:create '#{state[:hostname]}'")
       rescue Fog::Errors::Error, Excon::Errors::Error => ex
         raise ActionFailed, ex.message
